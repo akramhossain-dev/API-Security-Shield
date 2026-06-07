@@ -19,6 +19,10 @@ export type SecurityEventType =
   | "security.alert"
   | "fingerprint.changed"
   | "honeypot.triggered"
+  | "bot.detected"
+  | "webhook.triggered"
+  | "threat.blocked"
+  | "plugin.registered"
   | "plugin.error"
   | "storage.error";
 
