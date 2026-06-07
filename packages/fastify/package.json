@@ -1,0 +1,7 @@
+{
+  "name": "@api-security-shield/fastify",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reserved future Fastify adapter package for API Security Shield."
+}
