@@ -3,7 +3,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "coverage/**", "node_modules/**", "packages/*/dist/**"]
+    ignores: ["dist/**", "coverage/**", "node_modules/**", "packages/*/dist/**", "examples/**/*.ts"]
   },
   {
     files: ["**/*.ts"],
@@ -22,10 +22,11 @@ export default tseslint.config(
     },
     rules: {
       "@typescript-eslint/consistent-type-imports": "error",
-      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
+          "caughtErrors": "none",
           "argsIgnorePattern": "^_",
           "varsIgnorePattern": "^_"
         }

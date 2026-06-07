@@ -1,4 +1,4 @@
-import type { JsonObject } from "../../../../src/types/index.js";
+import type { JsonObject } from "../../../../../src/types/index.js";
 
 export interface BotDetectionResult {
     readonly isBot: boolean;

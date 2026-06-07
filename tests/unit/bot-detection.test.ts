@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { BotDetector } from "../../packages/detectors/src/bot/detector.js";
 import { UserAgentStrategy } from "../../packages/detectors/src/bot/strategies/user-agent.js";
 import { HeaderConsistencyStrategy } from "../../packages/detectors/src/bot/strategies/header-consistency.js";

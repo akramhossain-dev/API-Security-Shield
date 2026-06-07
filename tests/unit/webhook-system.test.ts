@@ -53,7 +53,8 @@ describe("Webhook System", () => {
         await provider.send(event);
 
         const fetchCall = vi.mocked(global.fetch).mock.calls[0];
-        const headers = fetchCall[1]?.headers as any;
+        expect(fetchCall).toBeDefined();
+        const headers = (fetchCall?.[1]?.headers ?? {}) as Record<string, string>;
         expect(headers["X-Shield-Signature"]).toBeDefined();
 
         global.fetch = globalFetch; // Restore fetch

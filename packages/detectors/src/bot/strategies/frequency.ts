@@ -1,4 +1,4 @@
-import type { AbstractStorage } from "../../../../src/interfaces/contracts.js";
+import type { AbstractStorage } from "../../../../../src/interfaces/contracts.js";
 import type { BotDetectionResult, BotDetectionStrategy } from "./user-agent.js";
 
 export interface FrequencyStrategyOptions {
