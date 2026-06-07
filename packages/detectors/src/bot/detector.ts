@@ -1,5 +1,4 @@
 import type { EventBus } from "../../../../src/events/event-bus.js";
-import type { SecurityEvent } from "../../../../src/events/index.js";
 import type { BotDetectionStrategy, BotDetectionResult } from "./strategies/user-agent.js";
 
 export interface BotDetectorOptions {
@@ -57,7 +56,7 @@ export class BotDetector {
             isBot,
             confidence: maxConfidence,
             reason: combinedReason,
-            metadata: results
+            metadata: results as unknown as NonNullable<BotDetectionResult["metadata"]>
         };
     }
 }

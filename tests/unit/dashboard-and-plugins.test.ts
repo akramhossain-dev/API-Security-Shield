@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import { MetricsAggregator } from "../../packages/dashboard/src/aggregators/metrics-aggregator.js";
-import { DashboardRouter } from "../../packages/dashboard/src/routes/dashboard-router.js";
 import { MemoryStorageAdapter } from "../../src/storage/memory-storage.adapter.js";
 import { EventBus } from "../../src/events/event-bus.js";
 import { PluginRuntime } from "../../packages/plugins/src/runtime/plugin-runtime.js";
