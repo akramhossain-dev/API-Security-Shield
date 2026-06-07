@@ -23,14 +23,14 @@ API Security Shield is a high-performance, extensible security middleware design
 ### Installation
 
 ```bash
-pnpm add @api-security-shield/core
+pnpm add @api-security-shield
 ```
 
 ### Basic Usage (Express)
 
 ```typescript
 import express from 'express';
-import { SecurityShield } from '@api-security-shield/core';
+import { SecurityShield } from '@api-security-shield';
 
 const app = express();
 const shield = new SecurityShield({
