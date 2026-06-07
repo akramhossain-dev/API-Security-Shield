@@ -365,7 +365,7 @@ const shield = new SecurityShield(config, {
 
 ## 📜 License
 
-MIT © 2024 [Akram Hossain](https://github.com/akramhossain-dev)
+MIT ©  [Akram Hossain](https://github.com/akramhossain-dev)
 
 ## 🤝 Contributing
 
@@ -382,4 +382,3 @@ Found a bug? Please report it on [GitHub Issues](https://github.com/akramhossain
 
 ---
 
-**Made with ❤️ by the API Security Shield team**
