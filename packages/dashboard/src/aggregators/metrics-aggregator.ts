@@ -15,7 +15,8 @@ export class MetricsAggregator {
     private readonly TOP_THREATS_KEY = "dashboard:top_threats";
     private readonly EVENTS_LOG_KEY = "dashboard:events_log";
 
-    private updateChain: Promise<void> = Promise.resolve();
+    private readonly queue: Array<() => Promise<void>> = [];
+    private processing = false;
 
     public constructor(
         private readonly eventBus: EventBus,
@@ -42,8 +43,31 @@ export class MetricsAggregator {
         });
     }
 
-    private async incrementMetric(field: keyof SecurityMetrics): Promise<void> {
-        this.updateChain = this.updateChain.then(async () => {
+    private enqueue(task: () => Promise<void>): void {
+        this.queue.push(task);
+        void this.processQueue();
+    }
+
+    private async processQueue(): Promise<void> {
+        if (this.processing) {
+            return;
+        }
+        this.processing = true;
+        while (this.queue.length > 0) {
+            const task = this.queue.shift();
+            if (task) {
+                try {
+                    await task();
+                } catch {
+                    // Ignore errors
+                }
+            }
+        }
+        this.processing = false;
+    }
+
+    private incrementMetric(field: keyof SecurityMetrics): void {
+        this.enqueue(async () => {
             try {
                 const metrics = await this.storage.get<SecurityMetrics>(this.METRICS_KEY) || {
                     totalRequests: 0,
@@ -54,25 +78,25 @@ export class MetricsAggregator {
                 };
                 metrics[field]++;
                 await this.storage.set(this.METRICS_KEY, metrics);
-            } catch (error) {
+            } catch {
                 // Ignore storage errors for metrics
             }
         });
-        await this.updateChain;
     }
 
-    private async logEvent(event: SecurityEvent): Promise<void> {
-        this.updateChain = this.updateChain.then(async () => {
+    private logEvent(event: SecurityEvent): void {
+        this.enqueue(async () => {
             try {
                 const logs = await this.storage.get<SecurityEvent[]>(this.EVENTS_LOG_KEY) || [];
                 logs.unshift(event);
-                if (logs.length > 100) logs.pop(); // Keep last 100 events
+                if (logs.length > 100) {
+                    logs.pop(); // Keep last 100 events
+                }
                 await this.storage.set(this.EVENTS_LOG_KEY, logs);
-            } catch (error) {
+            } catch {
                 // Ignore storage errors for logs
             }
         });
-        await this.updateChain;
     }
 
     public async getMetrics(): Promise<SecurityMetrics> {

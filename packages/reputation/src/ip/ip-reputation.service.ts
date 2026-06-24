@@ -120,7 +120,7 @@ export class IpReputationService {
     const normalized = this.normalizeIp(ip);
     await this.storage.set(this.blockKey(normalized), true, ttlSeconds);
 
-    await this.eventBus?.emitSafe({
+    void this.eventBus?.emitSafe({
       id: `${requestId ?? normalized}:ip-blacklisted`,
       type: "ip.blacklisted",
       timestamp: new Date().toISOString(),
@@ -133,7 +133,7 @@ export class IpReputationService {
       }
     });
 
-    await this.eventBus?.emitSafe({
+    void this.eventBus?.emitSafe({
       id: `${requestId ?? normalized}:security-alert`,
       type: "security.alert",
       timestamp: new Date().toISOString(),

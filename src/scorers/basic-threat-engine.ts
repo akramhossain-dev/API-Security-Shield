@@ -57,7 +57,7 @@ export class BasicThreatEngine {
         findings.push(...detectorFindings);
 
         for (const finding of detectorFindings) {
-          await this.eventBus?.emitSafe({
+          void this.eventBus?.emitSafe({
             id: `${context.requestId}:${finding.id}`,
             type: "threat.detected",
             timestamp: new Date().toISOString(),
@@ -74,7 +74,7 @@ export class BasicThreatEngine {
           });
         }
       } catch (error) {
-        await this.eventBus?.emitSafe({
+        void this.eventBus?.emitSafe({
           id: `${context.requestId}:${detector.name}:error`,
           type: "plugin.error",
           timestamp: new Date().toISOString(),
@@ -92,7 +92,7 @@ export class BasicThreatEngine {
     const decision = this.resolveDecision(score);
     const analyzedContext: RequestContext = { ...context, findings, score };
 
-    await this.eventBus?.emitSafe({
+    void this.eventBus?.emitSafe({
       id: `${context.requestId}:score`,
       type: "threat.scored",
       timestamp: new Date().toISOString(),
@@ -105,7 +105,7 @@ export class BasicThreatEngine {
       }
     });
 
-    await this.eventBus?.emitSafe({
+    void this.eventBus?.emitSafe({
       id: `${context.requestId}:action`,
       type: "action.enforced",
       timestamp: new Date().toISOString(),

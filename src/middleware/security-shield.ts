@@ -106,7 +106,7 @@ export function securityShield(options: SecurityShieldMiddlewareOptions = {}): R
       const fingerprint = fingerprintEngine.generate(baseContext);
       const context: RequestContext = { ...baseContext, fingerprint };
 
-      await eventBus.emitSafe({
+      void eventBus.emitSafe({
         id: `${requestId}:received`,
         type: "request.received",
         timestamp: new Date().toISOString(),
@@ -176,7 +176,7 @@ export function securityShield(options: SecurityShieldMiddlewareOptions = {}): R
         return;
       }
 
-      await eventBus.emitSafe({
+      void eventBus.emitSafe({
         id: `${requestId}:analyzed`,
         type: "request.analyzed",
         timestamp: new Date().toISOString(),
@@ -204,7 +204,7 @@ export function securityShield(options: SecurityShieldMiddlewareOptions = {}): R
 
       next();
     } catch (error) {
-      await eventBus.emitSafe({
+      void eventBus.emitSafe({
         id: `${requestId}:middleware-error`,
         type: "plugin.error",
         timestamp: new Date().toISOString(),

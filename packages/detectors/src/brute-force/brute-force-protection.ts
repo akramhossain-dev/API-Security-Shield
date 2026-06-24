@@ -81,7 +81,7 @@ export class BruteForceProtection {
     if (attempts > this.maxAttempts) {
       await this.storage.set(this.lockKey(identity), { reason: "too many login attempts" }, this.lockSeconds);
       const result = this.result(false, true, identity, attempts, true, this.lockSeconds, "too many login attempts");
-      await this.emitDetected(context, result);
+      this.emitDetected(context, result);
       return result;
     }
 
@@ -150,8 +150,8 @@ export class BruteForceProtection {
     };
   }
 
-  private async emitDetected(context: RequestContext, result: BruteForceResult): Promise<void> {
-    await this.eventBus?.emitSafe({
+  private emitDetected(context: RequestContext, result: BruteForceResult): void {
+    void this.eventBus?.emitSafe({
       id: `${context.requestId}:brute-force`,
       type: "brute_force.detected",
       timestamp: new Date().toISOString(),
@@ -165,7 +165,7 @@ export class BruteForceProtection {
       }
     });
 
-    await this.eventBus?.emitSafe({
+    void this.eventBus?.emitSafe({
       id: `${context.requestId}:brute-force-alert`,
       type: "security.alert",
       timestamp: new Date().toISOString(),

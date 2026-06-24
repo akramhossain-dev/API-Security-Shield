@@ -75,7 +75,7 @@ export class AdaptiveRateLimiter {
 
     if (activeBlock !== null) {
       const result = this.result(false, identity, blockKey, policy.limit, policy.limit, 0, policy.windowSeconds, true, activeBlock.reason);
-      await this.emitTriggered(context, result);
+      this.emitTriggered(context, result);
       return result;
     }
 
@@ -87,7 +87,7 @@ export class AdaptiveRateLimiter {
     if (!allowed) {
       await this.storage.set(blockKey, { reason: "rate limit exceeded" }, this.blockDurationSeconds);
       const result = this.result(false, identity, counterKey, policy.limit, remaining, count, this.blockDurationSeconds, true, "rate limit exceeded");
-      await this.emitTriggered(context, result);
+      this.emitTriggered(context, result);
       return result;
     }
 
@@ -162,8 +162,8 @@ export class AdaptiveRateLimiter {
     return identity.replace(/[^a-zA-Z0-9_.:-]/g, "_").slice(0, 160);
   }
 
-  private async emitTriggered(context: RequestContext, result: RateLimitResult): Promise<void> {
-    await this.eventBus?.emitSafe({
+  private emitTriggered(context: RequestContext, result: RateLimitResult): void {
+    void this.eventBus?.emitSafe({
       id: `${context.requestId}:rate-limit`,
       type: "rate_limit.triggered",
       timestamp: new Date().toISOString(),
