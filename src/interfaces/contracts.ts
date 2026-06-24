@@ -76,6 +76,13 @@ export abstract class AbstractStorage {
   public abstract get<T>(key: string): Promise<T | null>;
 
   /**
+   * Reads multiple values from storage.
+   */
+  public async mget<T>(keys: readonly string[]): Promise<readonly (T | null)[]> {
+    return Promise.all(keys.map((key) => this.get<T>(key)));
+  }
+
+  /**
    * Writes a value to storage.
    */
   public abstract set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;

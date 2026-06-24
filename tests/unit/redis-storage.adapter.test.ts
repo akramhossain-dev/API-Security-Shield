@@ -38,6 +38,37 @@ class MockRedis implements RedisLike {
   public async ping(): Promise<string> {
     return "PONG";
   }
+
+  public async mget(keys: string[]): Promise<(string | null)[]> {
+    return Promise.all(keys.map((k) => this.get(k)));
+  }
+
+  public pipeline() {
+    const commands: (() => Promise<any>)[] = [];
+    const results: [Error | null, any][] = [];
+    return {
+      incr: (key: string) => {
+        commands.push(async () => {
+          const res = await this.incr(key);
+          results.push([null, res]);
+        });
+        return this;
+      },
+      expire: (key: string, ttlSeconds: number) => {
+        commands.push(async () => {
+          const res = await this.expire(key, ttlSeconds);
+          results.push([null, res]);
+        });
+        return this;
+      },
+      exec: async () => {
+        for (const cmd of commands) {
+          await cmd();
+        }
+        return results;
+      }
+    };
+  }
 }
 
 describe("RedisStorageAdapter", () => {
@@ -58,6 +89,17 @@ describe("RedisStorageAdapter", () => {
     expect(await storage.increment("count", 60)).toBe(1);
     expect(await storage.increment("count", 60)).toBe(2);
     expect(client.expirations.get("test:count")).toBe(60);
+  });
+
+  it("fetches multiple values concurrently using mget", async () => {
+    const client = new MockRedis();
+    const storage = new RedisStorageAdapter({ client, keyPrefix: "test" });
+
+    await storage.set("k1", { val: 1 });
+    await storage.set("k2", { val: 2 });
+
+    const results = await storage.mget<any>(["k1", "k2", "k3"]);
+    expect(results).toEqual([{ val: 1 }, { val: 2 }, null]);
   });
 
   it("reports health and rejects invalid keys", async () => {

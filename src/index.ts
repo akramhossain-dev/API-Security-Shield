@@ -11,3 +11,6 @@ export * from "../packages/detectors/src/brute-force/index.js";
 export * from "../packages/rate-limit/src/index.js";
 export * from "../packages/redis/src/index.js";
 export * from "../packages/reputation/src/index.js";
+export * from "../packages/detectors/src/bot/index.js";
+export * from "../packages/plugins/src/index.js";
+

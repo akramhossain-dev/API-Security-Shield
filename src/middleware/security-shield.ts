@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import proxyAddr from "proxy-addr";
 
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 
@@ -22,6 +23,13 @@ import {
 } from "../../packages/rate-limit/src/index.js";
 import { RedisStorageAdapter, type RedisStorageOptions } from "../../packages/redis/src/index.js";
 import { IpReputationService, type IpReputationOptions } from "../../packages/reputation/src/index.js";
+import {
+  BotDetector,
+  UserAgentStrategy,
+  HeaderConsistencyStrategy,
+  type BotDetectorOptions
+} from "../../packages/detectors/src/bot/index.js";
+import { PluginRegistry, PluginRuntime } from "../../packages/plugins/src/index.js";
 
 export type SecurityShieldMiddlewareOptions = SecurityShieldConfigInput & {
   readonly eventBus?: EventBus;
@@ -39,6 +47,10 @@ export type SecurityShieldMiddlewareOptions = SecurityShieldConfigInput & {
   readonly ipReputationOptions?: Omit<IpReputationOptions, "storage" | "eventBus">;
   readonly bruteForceProtection?: BruteForceProtection;
   readonly bruteForceOptions?: Omit<BruteForceProtectionOptions, "storage" | "eventBus">;
+  readonly botDetector?: BotDetector;
+  readonly botDetectionOptions?: BotDetectorOptions;
+  readonly pluginRegistry?: PluginRegistry;
+  readonly pluginRuntime?: PluginRuntime;
 };
 
 /**
@@ -81,6 +93,34 @@ export function securityShield(options: SecurityShieldMiddlewareOptions = {}): R
       eventBus
     });
 
+  const botDetector =
+    options.botDetector ??
+    new BotDetector(eventBus, options.botDetectionOptions);
+
+  if (!options.botDetector) {
+    botDetector.use(new UserAgentStrategy()).use(new HeaderConsistencyStrategy());
+  }
+
+  const pluginRegistry = options.pluginRegistry ?? new PluginRegistry();
+  const pluginRuntime = options.pluginRuntime ?? new PluginRuntime(eventBus, pluginRegistry);
+
+  if (options.plugins) {
+    for (const plugin of options.plugins) {
+      pluginRuntime.load(plugin as any).catch((error) => {
+        void eventBus.emitSafe({
+          id: `plugin-load-error-${Date.now()}`,
+          type: "plugin.error",
+          timestamp: new Date().toISOString(),
+          requestId: "init",
+          severity: "error",
+          data: {
+            message: error instanceof Error ? error.message : "Failed to load plugin during initialization"
+          }
+        });
+      });
+    }
+  }
+
   eventBus.on("request.received", (event) => logger.handle(event));
   eventBus.on("request.analyzed", (event) => logger.handle(event));
   eventBus.on("threat.detected", (event) => logger.handle(event));
@@ -100,7 +140,7 @@ export function securityShield(options: SecurityShieldMiddlewareOptions = {}): R
     }
 
     const requestId = resolveRequestId(request);
-    const baseContext = buildRequestContext(request, requestId);
+    const baseContext = buildRequestContext(request, requestId, config.trustProxy);
 
     try {
       const fingerprint = fingerprintEngine.generate(baseContext);
@@ -133,28 +173,39 @@ export function securityShield(options: SecurityShieldMiddlewareOptions = {}): R
         sendBlocked(
           response,
           429,
-          "brute_force_locked",
-          "Login temporarily locked by API Security Shield",
+          "brute_force_detected",
+          "Too many login attempts",
           requestId,
-          70,
+          75,
           bruteForceCheck.retryAfterSeconds
         );
         return;
       }
 
-      const bruteForceAttempt = await bruteForceProtection.recordAttempt(context);
-      if (!bruteForceAttempt.allowed) {
-        sendBlocked(
-          response,
-          429,
-          "brute_force_detected",
-          "Too many login attempts",
-          requestId,
-          75,
-          bruteForceAttempt.retryAfterSeconds
-        );
-        return;
+      response.on("finish", () => {
+        if (response.statusCode === 401 || response.statusCode === 403) {
+          void bruteForceProtection.recordAttempt(context).catch(() => {});
+        } else if (response.statusCode === 200 || response.statusCode === 201 || response.statusCode === 204) {
+          void bruteForceProtection.recordSuccess(context).catch(() => {});
+        }
+      });
+
+      if (config.botDetection) {
+        const botResult = await botDetector.analyze(request, requestId);
+        if (botResult.isBot) {
+          sendBlocked(
+            response,
+            403,
+            "bot_detected",
+            "Automated request blocked by API Security Shield",
+            requestId,
+            Math.round(botResult.confidence * 100)
+          );
+          return;
+        }
       }
+
+      await pluginRuntime.runAnalysisHooks(request, context);
 
       const result = await threatEngine.analyze(context);
 
@@ -235,13 +286,27 @@ function isRedisConfig(value: unknown): value is RedisStorageOptions {
   return typeof value === "object" && value !== null;
 }
 
-function buildRequestContext(request: Request, requestId: string): RequestContext {
+function resolveClientIp(request: Request, trustProxy?: boolean | string[]): string {
+  const socketIp = request.socket.remoteAddress ?? "unknown";
+  if (!trustProxy) {
+    return request.ip ?? socketIp;
+  }
+
+  const trust = typeof trustProxy === "boolean"
+    ? () => trustProxy
+    : (addr: string) => trustProxy.includes(addr);
+
+  const ip = proxyAddr(request, trust);
+  return ip || request.ip || socketIp;
+}
+
+function buildRequestContext(request: Request, requestId: string, trustProxy?: boolean | string[]): RequestContext {
   return {
     requestId,
     method: request.method,
     path: request.path,
     route: typeof request.route?.path === "string" ? request.route.path : undefined,
-    ip: request.ip ?? request.socket.remoteAddress ?? "unknown",
+    ip: resolveClientIp(request, trustProxy),
     headers: normalizeHeaders(request.headers),
     query: request.query,
     body: request.body,

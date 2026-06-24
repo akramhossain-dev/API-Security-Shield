@@ -78,7 +78,7 @@ export class BruteForceProtection {
     const identity = this.identity(context);
     const attempts = await this.storage.increment(this.attemptKey(identity), this.windowSeconds);
 
-    if (attempts > this.maxAttempts) {
+    if (attempts >= this.maxAttempts) {
       await this.storage.set(this.lockKey(identity), { reason: "too many login attempts" }, this.lockSeconds);
       const result = this.result(false, true, identity, attempts, true, this.lockSeconds, "too many login attempts");
       this.emitDetected(context, result);

@@ -33,7 +33,6 @@ describe("BruteForceProtection", () => {
     });
 
     await protection.recordAttempt(context);
-    await protection.recordAttempt(context);
     const locked = await protection.recordAttempt(context);
     const checked = await protection.check(context);
 

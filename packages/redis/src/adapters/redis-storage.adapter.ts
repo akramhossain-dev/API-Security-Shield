@@ -17,6 +17,8 @@ export interface RedisLike {
   expire(key: string, ttlSeconds: number): Promise<unknown>;
   del(key: string): Promise<unknown>;
   ping(): Promise<string>;
+  pipeline?(): any;
+  mget?(keys: string[]): Promise<(string | null)[]>;
 }
 
 /**
@@ -95,12 +97,71 @@ export class RedisStorageAdapter extends AbstractStorage {
   }
 
   /**
+   * Reads and JSON-decodes multiple values from Redis in a single network roundtrip.
+   */
+  public override async mget<T>(keys: readonly string[]): Promise<readonly (T | null)[]> {
+    if (keys.length === 0) {
+      return [];
+    }
+
+    for (const key of keys) {
+      this.validateKey(key);
+    }
+
+    const fullKeys = keys.map((k) => this.key(k));
+    let rawResults: (string | null)[];
+
+    if (typeof this.client.mget === "function") {
+      rawResults = await this.client.mget(fullKeys);
+    } else {
+      rawResults = await Promise.all(fullKeys.map((k) => this.client.get(k)));
+    }
+
+    return rawResults.map((raw, index) => {
+      if (raw === null) {
+        return null;
+      }
+
+      try {
+        return JSON.parse(raw) as T;
+      } catch (error) {
+        throw new RedisStorageError(
+          `Stored value for key "${keys[index]}" is not valid JSON: ${
+            error instanceof Error ? error.message : "unknown parse error"
+          }`
+        );
+      }
+    });
+  }
+
+  /**
    * Atomically increments a Redis counter and applies a TTL.
    */
   public async increment(key: string, ttlSeconds: number): Promise<number> {
     this.validateKey(key);
     this.validateTtl(ttlSeconds);
     const fullKey = this.key(key);
+
+    if (typeof this.client.pipeline === "function") {
+      const pipeline = this.client.pipeline();
+      pipeline.incr(fullKey);
+      pipeline.expire(fullKey, Math.ceil(ttlSeconds));
+      const results = await pipeline.exec();
+
+      if (!results || !results[0]) {
+        throw new RedisStorageError("Pipeline execution returned empty results");
+      }
+
+      const incrResult = results[0][1];
+      if (typeof incrResult === "number") {
+        return incrResult;
+      }
+      if (typeof incrResult === "string") {
+        return Number(incrResult);
+      }
+      throw new RedisStorageError("Unexpected incr result type from pipeline");
+    }
+
     const value = await this.client.incr(fullKey);
     await this.client.expire(fullKey, Math.ceil(ttlSeconds));
     return value;
@@ -158,6 +219,8 @@ function createRedisLike(client: Redis): RedisLike {
     incr: (key: string) => client.incr(key),
     expire: (key: string, ttlSeconds: number) => client.expire(key, ttlSeconds),
     del: (key: string) => client.del(key),
-    ping: () => client.ping()
+    ping: () => client.ping(),
+    pipeline: () => client.pipeline(),
+    mget: (keys: string[]) => client.mget(keys)
   };
 }

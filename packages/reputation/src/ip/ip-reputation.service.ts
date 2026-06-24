@@ -58,19 +58,23 @@ export class IpReputationService {
    */
   public async assess(context: RequestContext): Promise<IpReputationResult> {
     const ip = this.normalizeIp(context.ip);
-    await this.touch(ip);
+    const [whitelisted, blacklisted, record] = await this.storage.mget<any>([
+      this.allowKey(ip),
+      this.blockKey(ip),
+      this.recordKey(ip)
+    ]);
 
-    if ((await this.storage.get<boolean>(this.allowKey(ip))) === true) {
+    const updatedRecord = await this.touchRecord(ip, record);
+
+    if (whitelisted === true) {
       return this.result(ip, 0, true, true, false, "ip whitelisted");
     }
 
-    if ((await this.storage.get<boolean>(this.blockKey(ip))) === true) {
-      const record = await this.getRecord(ip);
-      return this.result(ip, record.score, false, false, true, "ip blacklisted");
+    if (blacklisted === true) {
+      return this.result(ip, updatedRecord.score, false, false, true, "ip blacklisted");
     }
 
-    const record = await this.getRecord(ip);
-    return this.result(ip, record.score, true, false, false, "ip allowed");
+    return this.result(ip, updatedRecord.score, true, false, false, "ip allowed");
   }
 
   /**
@@ -82,7 +86,10 @@ export class IpReputationService {
     findings: readonly DetectorFinding[]
   ): Promise<IpReputationRecord> {
     const ip = this.normalizeIp(context.ip);
-    const current = await this.getRecord(ip);
+    const [current, whitelisted] = await Promise.all([
+      this.getRecord(ip),
+      this.storage.get<boolean>(this.allowKey(ip))
+    ]);
     const nextScore = Math.min(200, Math.round(current.score * this.scoreDecay + score.value + findings.length * 5));
     const next: IpReputationRecord = {
       ...current,
@@ -93,7 +100,7 @@ export class IpReputationService {
 
     await this.storage.set(this.recordKey(ip), next, this.historyTtlSeconds);
 
-    if (next.score >= this.blacklistScore && (await this.storage.get<boolean>(this.allowKey(ip))) !== true) {
+    if (next.score >= this.blacklistScore && whitelisted !== true) {
       await this.blacklist(ip, "reputation score exceeded threshold", this.blacklistTtlSeconds, context.requestId);
     }
 
@@ -145,6 +152,21 @@ export class IpReputationService {
         reason
       }
     });
+  }
+
+  private async touchRecord(ip: string, current: IpReputationRecord | null): Promise<IpReputationRecord> {
+    const now = new Date().toISOString();
+    const next: IpReputationRecord = {
+      ip: current?.ip ?? ip,
+      score: current?.score ?? 0,
+      firstSeen: current?.firstSeen || now,
+      lastSeen: now,
+      requests: (current?.requests ?? 0) + 1,
+      threats: current?.threats ?? 0
+    };
+
+    await this.storage.set(this.recordKey(ip), next, this.historyTtlSeconds);
+    return next;
   }
 
   private async touch(ip: string): Promise<IpReputationRecord> {

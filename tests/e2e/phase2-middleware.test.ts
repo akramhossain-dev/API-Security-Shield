@@ -16,6 +16,7 @@ describe("Phase 2 middleware integration", () => {
       securityShield({
         eventBus: new EventBus(),
         storage: new MemoryStorageAdapter(),
+        botDetection: false,
         loggerOptions: { minSeverity: "critical" },
         rateLimiterOptions: {
           defaultLimit: 1,
@@ -41,6 +42,7 @@ describe("Phase 2 middleware integration", () => {
       securityShield({
         eventBus: new EventBus(),
         storage: new MemoryStorageAdapter(),
+        botDetection: false,
         loggerOptions: { minSeverity: "critical" },
         rateLimiterOptions: {
           defaultLimit: 100
