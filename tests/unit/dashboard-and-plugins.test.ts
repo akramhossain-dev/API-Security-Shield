@@ -6,6 +6,8 @@ import { PluginRuntime } from "../../packages/plugins/src/runtime/plugin-runtime
 import { PluginRegistry } from "../../packages/plugins/src/registry/plugin-registry.js";
 import { SecurityPlugin } from "../../packages/plugins/src/sdk/plugin-base.js";
 
+import { DashboardRouter } from "../../packages/dashboard/src/routes/dashboard-router.js";
+
 describe("Dashboard and Plugin Systems", () => {
     const eventBus = new EventBus();
     const storage = new MemoryStorageAdapter();
@@ -27,6 +29,57 @@ describe("Dashboard and Plugin Systems", () => {
             const metrics = await aggregator.getMetrics();
             expect(metrics.botsDetected).toBeGreaterThan(0);
             expect(metrics.threatsDetected).toBeGreaterThan(0);
+        });
+
+        it("should enforce apiKey authentication when configured", async () => {
+            const aggregator = new MetricsAggregator(eventBus, storage);
+            const router = new DashboardRouter(aggregator, { apiKey: "secret-key" });
+
+            // 1. Unauthenticated request
+            let status = 0;
+            let body = "";
+            const resMock = {
+                writeHead: (s: number) => { status = s; },
+                end: (b: string) => { body = b; }
+            };
+            const reqMock1 = {
+                url: "/api/security/stats",
+                headers: {}
+            };
+            await router.handleRequest(reqMock1, resMock);
+            expect(status).toBe(401);
+            expect(JSON.parse(body).error).toContain("Unauthorized");
+
+            // 2. Authenticated request with correct key
+            const reqMock2 = {
+                url: "/api/security/stats",
+                headers: { authorization: "Bearer secret-key" }
+            };
+            await router.handleRequest(reqMock2, resMock);
+            expect(status).toBe(200);
+        });
+
+        it("should support custom authMiddleware", async () => {
+            const aggregator = new MetricsAggregator(eventBus, storage);
+            let middlewareCalled = false;
+            const authMiddleware = (req: any, res: any, next: () => void) => {
+                middlewareCalled = true;
+                next();
+            };
+            const router = new DashboardRouter(aggregator, { authMiddleware });
+
+            let status = 0;
+            const resMock = {
+                writeHead: (s: number) => { status = s; },
+                end: () => {}
+            };
+            const reqMock = {
+                url: "/api/security/stats",
+                headers: {}
+            };
+            await router.handleRequest(reqMock, resMock);
+            expect(middlewareCalled).toBe(true);
+            expect(status).toBe(200);
         });
     });
 

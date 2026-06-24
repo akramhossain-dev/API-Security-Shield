@@ -19,6 +19,7 @@ export interface AdaptiveRateLimiterOptions {
   readonly highRiskScore?: number;
   readonly identityResolver?: (context: RequestContext) => string;
   readonly routePolicies?: readonly RouteRateLimitPolicy[];
+  readonly routeNormalizer?: (path: string) => string;
 }
 
 export interface RateLimitResult {
@@ -34,6 +35,13 @@ export interface RateLimitResult {
   readonly reason: string;
 }
 
+export function defaultRouteNormalizer(path: string): string {
+  return path
+    .replace(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, ":id")
+    .replace(/(?<=\/)\d+(?=\/|$)/g, ":id")
+    .replace(/(?<=\/)[0-9a-fA-F]{24}(?=\/|$)/g, ":id");
+}
+
 /**
  * Adaptive rate limiter with route-aware and risk-aware limits.
  */
@@ -47,6 +55,7 @@ export class AdaptiveRateLimiter {
   private readonly highRiskScore: number;
   private readonly identityResolver: (context: RequestContext) => string;
   private readonly routePolicies: readonly RouteRateLimitPolicy[];
+  private readonly routeNormalizer: (path: string) => string;
 
   /**
    * Creates an adaptive rate limiter.
@@ -61,6 +70,7 @@ export class AdaptiveRateLimiter {
     this.highRiskScore = options.highRiskScore ?? 50;
     this.identityResolver = options.identityResolver ?? ((context) => context.auth?.userIdHash ?? context.ip);
     this.routePolicies = options.routePolicies ?? [];
+    this.routeNormalizer = options.routeNormalizer ?? defaultRouteNormalizer;
   }
 
   /**
@@ -69,7 +79,8 @@ export class AdaptiveRateLimiter {
   public async evaluate(context: RequestContext, score?: ThreatScore): Promise<RateLimitResult> {
     const identity = this.safeIdentity(this.identityResolver(context));
     const policy = this.resolvePolicy(context, score);
-    const routeKey = this.safeIdentity(context.route ?? context.path);
+    const rawRoute = context.route ?? context.path;
+    const routeKey = this.safeIdentity(this.routeNormalizer(rawRoute));
     const blockKey = `rate-limit:block:${routeKey}:${identity}`;
     const activeBlock = await this.storage.get<{ readonly reason: string }>(blockKey);
 
@@ -115,8 +126,9 @@ export class AdaptiveRateLimiter {
     context: RequestContext,
     score?: ThreatScore
   ): { readonly limit: number; readonly windowSeconds: number } {
-    const route = context.route ?? context.path;
-    const routePolicy = this.routePolicies.find((policy) => policy.route === route);
+    const rawRoute = context.route ?? context.path;
+    const route = this.routeNormalizer(rawRoute);
+    const routePolicy = this.routePolicies.find((policy) => this.routeNormalizer(policy.route) === route);
     const baseLimit = routePolicy?.limit ?? this.defaultLimit;
     const windowSeconds = routePolicy?.windowSeconds ?? this.windowSeconds;
 

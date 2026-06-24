@@ -79,11 +79,12 @@ export class PluginRuntime {
     }
 
     private async safeExecute<T>(fn: () => Promise<T>, pluginName: string): Promise<T | undefined> {
+        let timeoutId: NodeJS.Timeout | undefined;
         try {
             // Basic timeout-based sandbox (simulated)
-            const timeout = new Promise<undefined>((_, reject) =>
-                setTimeout(() => reject(new Error("Plugin execution timed out")), 5000)
-            );
+            const timeout = new Promise<undefined>((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error("Plugin execution timed out")), 5000);
+            });
             return await Promise.race([fn(), timeout]) as T;
         } catch (error) {
             this.eventBus.emit({
@@ -98,6 +99,10 @@ export class PluginRuntime {
                 }
             });
             return undefined;
+        } finally {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
         }
     }
 }

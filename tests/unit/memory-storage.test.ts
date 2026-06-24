@@ -27,11 +27,45 @@ describe("MemoryStorageAdapter", () => {
     expect(await storage.get("key")).toBeNull();
     expect(storage.size()).toBe(0);
   });
-
   it("rejects invalid keys and TTL values", async () => {
     const storage = new MemoryStorageAdapter();
 
     await expect(storage.get(" ")).rejects.toBeInstanceOf(MemoryStorageError);
     await expect(storage.increment("count", 0)).rejects.toBeInstanceOf(MemoryStorageError);
+  });
+
+  it("evicts oldest keys when max capacity is reached (LRU)", async () => {
+    const storage = new MemoryStorageAdapter({ maxKeys: 2 });
+
+    await storage.set("k1", "v1");
+    await storage.set("k2", "v2");
+    expect(await storage.get("k1")).toBe("v1");
+
+    await storage.set("k3", "v3");
+
+    expect(await storage.get("k1")).toBe("v1");
+    expect(await storage.get("k2")).toBeNull();
+    expect(await storage.get("k3")).toBe("v3");
+
+    storage.destroy();
+  });
+
+  it("prunes expired keys in batches via background interval", async () => {
+    let now = 1000;
+    const storage = new MemoryStorageAdapter({
+      now: () => now,
+      pruneIntervalMs: 10,
+      pruneBatchSize: 1
+    });
+
+    await storage.set("k1", "v1", 1);
+    await storage.set("k2", "v2", 1);
+
+    now = 2500;
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(storage.size()).toBe(0);
+    storage.destroy();
   });
 });

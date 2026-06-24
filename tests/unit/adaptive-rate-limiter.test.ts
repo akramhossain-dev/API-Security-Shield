@@ -62,4 +62,22 @@ describe("AdaptiveRateLimiter", () => {
     expect(denied.allowed).toBe(false);
     expect(denied.limit).toBe(1);
   });
+
+  it("normalizes dynamic route parameters to avoid key fragmentation", async () => {
+    const storage = new MemoryStorageAdapter();
+    const limiter = new AdaptiveRateLimiter({
+      storage,
+      defaultLimit: 1,
+      windowSeconds: 60
+    });
+
+    const context1 = createRequestContext({ path: "/api/users/123" });
+    const context2 = createRequestContext({ path: "/api/users/456" });
+
+    const first = await limiter.evaluate(context1);
+    const second = await limiter.evaluate(context2);
+
+    expect(first.allowed).toBe(true);
+    expect(second.allowed).toBe(false);
+  });
 });

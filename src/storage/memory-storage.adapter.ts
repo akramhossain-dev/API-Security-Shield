@@ -3,6 +3,9 @@ import type { StorageHealth } from "../types/index.js";
 
 export interface MemoryStorageOptions {
   readonly now?: () => number;
+  readonly maxKeys?: number;
+  readonly pruneIntervalMs?: number;
+  readonly pruneBatchSize?: number;
 }
 
 interface MemoryStorageEntry<T> {
@@ -29,6 +32,10 @@ export class MemoryStorageError extends Error {
 export class MemoryStorageAdapter extends AbstractStorage {
   private readonly entries = new Map<string, MemoryStorageEntry<unknown>>();
   private readonly now: () => number;
+  private readonly maxKeys: number;
+  private readonly pruneIntervalMs: number;
+  private readonly pruneBatchSize: number;
+  private pruneInterval?: any;
 
   /**
    * Creates a memory storage adapter.
@@ -36,11 +43,42 @@ export class MemoryStorageAdapter extends AbstractStorage {
   public constructor(options: MemoryStorageOptions = {}) {
     super("memory");
     this.now = options.now ?? Date.now;
+    this.maxKeys = options.maxKeys ?? 10000;
+    this.pruneIntervalMs = options.pruneIntervalMs ?? 30000;
+    this.pruneBatchSize = options.pruneBatchSize ?? 100;
+    this.startPruningInterval();
+  }
+
+  private startPruningInterval(): void {
+    if (typeof setInterval === "function" && this.pruneIntervalMs > 0) {
+      this.pruneInterval = setInterval(() => {
+        let count = 0;
+        for (const [key, entry] of this.entries.entries()) {
+          if (this.isExpired(entry)) {
+            this.entries.delete(key);
+          }
+          count++;
+          if (count >= this.pruneBatchSize) {
+            break;
+          }
+        }
+      }, this.pruneIntervalMs);
+
+      if (this.pruneInterval && typeof this.pruneInterval.unref === "function") {
+        this.pruneInterval.unref();
+      }
+    }
   }
 
   /**
-   * Reads a value from storage if the key exists and has not expired.
+   * Cleans up the pruning interval timer.
    */
+  public destroy(): void {
+    if (this.pruneInterval) {
+      clearInterval(this.pruneInterval);
+    }
+  }
+
   public async get<T>(key: string): Promise<T | null> {
     this.validateKey(key);
     const entry = this.entries.get(key);
@@ -54,6 +92,9 @@ export class MemoryStorageAdapter extends AbstractStorage {
       return null;
     }
 
+    this.entries.delete(key);
+    this.entries.set(key, entry);
+
     return entry.value as T;
   }
 
@@ -63,6 +104,16 @@ export class MemoryStorageAdapter extends AbstractStorage {
   public async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     this.validateKey(key);
     const expiresAt = this.resolveExpiresAt(ttlSeconds);
+
+    if (this.entries.has(key)) {
+      this.entries.delete(key);
+    } else if (this.entries.size >= this.maxKeys) {
+      const oldestKey = this.entries.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.entries.delete(oldestKey);
+      }
+    }
+
     this.entries.set(key, { value, expiresAt });
   }
 
