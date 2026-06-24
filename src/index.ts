@@ -7,11 +7,10 @@ export * from "./middleware/index.js";
 export * from "./scorers/index.js";
 export * from "./storage/index.js";
 export * from "./types/index.js";
-export * from "../packages/detectors/src/brute-force/index.js";
-export * from "../packages/rate-limit/src/index.js";
-export * from "../packages/redis/src/index.js";
-export * from "../packages/reputation/src/index.js";
-export * from "../packages/detectors/src/bot/index.js";
-export * from "../packages/plugins/src/index.js";
-export * from "../packages/dashboard/src/index.js";
+export * from "@api-security-shield/detectors";
+export * from "@api-security-shield/rate-limit";
+export * from "@api-security-shield/redis";
+export * from "@api-security-shield/reputation";
+export * from "@api-security-shield/plugins";
+export * from "@api-security-shield/dashboard";
 

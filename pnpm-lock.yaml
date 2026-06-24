@@ -20,6 +20,9 @@ importers:
       mongodb:
         specifier: ^6.8.0
         version: 6.21.0
+      proxy-addr:
+        specifier: ^2.0.7
+        version: 2.0.7
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -30,6 +33,9 @@ importers:
       '@types/node':
         specifier: ^22.5.4
         version: 22.20.0
+      '@types/proxy-addr':
+        specifier: ^2.0.3
+        version: 2.0.3
       '@types/supertest':
         specifier: ^7.2.0
         version: 7.2.0
@@ -70,7 +76,23 @@ importers:
         specifier: ^2.0.5
         version: 2.1.9(@types/node@22.20.0)
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      eventemitter3:
+        specifier: ^5.0.1
+        version: 5.0.4
+      express:
+        specifier: ^4.19.2 || ^5.0.0
+        version: 4.22.2
+      ioredis:
+        specifier: ^5.4.1
+        version: 5.11.1
+      proxy-addr:
+        specifier: ^2.0.7
+        version: 2.0.7
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
 
   packages/dashboard: {}
 
@@ -795,6 +817,9 @@ packages:
 
   '@types/node@22.20.0':
     resolution: {integrity: sha512-QWlFW2wf3nTjC13/DqRnBpR4ZO36VJH/JVBkA/vcnmbTBNQIlnObqyqZE1tUR7+Ni23Lda8R1BxMfbXRpCUx5g==}
+
+  '@types/proxy-addr@2.0.3':
+    resolution: {integrity: sha512-TgAHHO4tNG3HgLTUhB+hM4iwW6JUNeQHCLnF1DjaDA9c69PN+IasoFu2MYDhubFc+ZIw5c5t9DMtjvrD6R3Egg==}
 
   '@types/qs@6.15.1':
     resolution: {integrity: sha512-GZHUBZR9hckSUhrxmp1nG6NwdpM9fCunJwyThLW1X3AyHgd9IlHb6VANpQQqDr2o/qQp6McZ3y/IA2rVzKzSbw==}
@@ -2430,6 +2455,10 @@ snapshots:
   '@types/node@22.20.0':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/proxy-addr@2.0.3':
+    dependencies:
+      '@types/node': 22.20.0
 
   '@types/qs@6.15.1': {}
 

@@ -15,21 +15,19 @@ import { MemoryStorageAdapter } from "../storage/memory-storage.adapter.js";
 import type { RequestContext } from "../types/index.js";
 import {
   BruteForceProtection,
-  type BruteForceProtectionOptions
-} from "../../packages/detectors/src/brute-force/index.js";
-import {
-  AdaptiveRateLimiter,
-  type AdaptiveRateLimiterOptions
-} from "../../packages/rate-limit/src/index.js";
-import { RedisStorageAdapter, type RedisStorageOptions } from "../../packages/redis/src/index.js";
-import { IpReputationService, type IpReputationOptions } from "../../packages/reputation/src/index.js";
-import {
+  type BruteForceProtectionOptions,
   BotDetector,
   UserAgentStrategy,
   HeaderConsistencyStrategy,
   type BotDetectorOptions
-} from "../../packages/detectors/src/bot/index.js";
-import { PluginRegistry, PluginRuntime } from "../../packages/plugins/src/index.js";
+} from "@api-security-shield/detectors";
+import {
+  AdaptiveRateLimiter,
+  type AdaptiveRateLimiterOptions
+} from "@api-security-shield/rate-limit";
+import { RedisStorageAdapter, type RedisStorageOptions } from "@api-security-shield/redis";
+import { IpReputationService, type IpReputationOptions } from "@api-security-shield/reputation";
+import { PluginRegistry, PluginRuntime } from "@api-security-shield/plugins";
 
 export type SecurityShieldMiddlewareOptions = SecurityShieldConfigInput & {
   readonly eventBus?: EventBus;

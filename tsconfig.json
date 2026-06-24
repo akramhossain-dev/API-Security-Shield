@@ -17,7 +17,16 @@
     "noImplicitReturns": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
-    "types": ["node", "vitest/globals"]
+    "types": ["node", "vitest/globals"],
+    "baseUrl": ".",
+    "paths": {
+      "@api-security-shield/detectors": ["packages/detectors/src/index.ts"],
+      "@api-security-shield/rate-limit": ["packages/rate-limit/src/index.ts"],
+      "@api-security-shield/redis": ["packages/redis/src/index.ts"],
+      "@api-security-shield/reputation": ["packages/reputation/src/index.ts"],
+      "@api-security-shield/plugins": ["packages/plugins/src/index.ts"],
+      "@api-security-shield/dashboard": ["packages/dashboard/src/index.ts"]
+    }
   },
   "include": [
     "src/**/*.ts",
